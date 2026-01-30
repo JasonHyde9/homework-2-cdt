@@ -10,6 +10,7 @@
       service:
         name: redis-server
         state: restarted
+        daemon_reload: yes
 
     - name: Restart Apache
       service:
@@ -46,6 +47,14 @@
         line: "protected-mode no"
       notify: Restart Redis
 
+    - name: Enable Dangerous Config Changes (Vulnerability Requirement)
+      lineinfile:
+        path: /etc/redis/redis.conf
+        regexp: '^enable-protected-configs '
+        line: "enable-protected-configs yes"
+        insertafter: EOF
+      notify: Restart Redis
+
     - name: Set Web Root Permissions
       file:
         path: "{{ web_root }}"
@@ -63,6 +72,23 @@
           echo "<p>Redis is running on port {{ redis_port }}</p>";
           ?>
       notify: Restart Apache
+
+    # --- New Tasks for Systemd Override ---
+    - name: Create systemd override directory for Redis
+      file:
+        path: /etc/systemd/system/redis-server.service.d
+        state: directory
+        mode: '0755'
+
+    - name: Allow Redis to write to web root (Systemd Override)
+      copy:
+        dest: /etc/systemd/system/redis-server.service.d/override.conf
+        content: |
+          [Service]
+          ReadWritePaths=/var/www/html
+          UMask=0022
+      notify: Restart Redis
+    # --------------------------------------
 
     - name: Ensure Services are Running
       service:
