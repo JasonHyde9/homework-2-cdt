@@ -1,0 +1,74 @@
+---
+- name: Deploy Vulnerable Web & Redis Stack
+  hosts: all
+  become: yes
+  vars_files:
+    - vars/main.yml
+
+  handlers:
+    - name: Restart Redis
+      service:
+        name: redis-server
+        state: restarted
+
+    - name: Restart Apache
+      service:
+        name: apache2
+        state: restarted
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install Apache, PHP, and Redis
+      apt:
+        name:
+          - apache2
+          - php
+          - libapache2-mod-php
+          - redis-server
+          - php-redis
+        state: present
+
+    - name: Configure Redis Bind Address
+      lineinfile:
+        path: /etc/redis/redis.conf
+        regexp: '^bind '
+        line: "bind {{ redis_bind_interface }}"
+      notify: Restart Redis
+
+    - name: Disable Redis Protected Mode
+      lineinfile:
+        path: /etc/redis/redis.conf
+        regexp: '^protected-mode '
+        line: "protected-mode no"
+      notify: Restart Redis
+
+    - name: Set Web Root Permissions
+      file:
+        path: "{{ web_root }}"
+        state: directory
+        mode: "0777"
+        owner: "www-data"
+        group: "www-data"
+
+    - name: Create Dummy Index Page
+      copy:
+        dest: "{{ web_root }}/index.php"
+        content: |
+          <?php
+          echo "<h1>Vulnerable Service Deployed</h1>";
+          echo "<p>Redis is running on port {{ redis_port }}</p>";
+          ?>
+      notify: Restart Apache
+
+    - name: Ensure Services are Running
+      service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - apache2
+        - redis-server
