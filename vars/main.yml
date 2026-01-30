@@ -1,0 +1,14 @@
+redis_bind_interface: "0.0.0.0"
+redis_port: 6379
+
+# Web Server Configuration
+web_package: "apache2"
+php_packages:
+  - php
+  - libapache2-mod-php
+  - php-redis
+web_root: "/var/www/html"
+
+# Vulnerability Settings
+vulnerable_dir_mode: "0777"
+redis_protected_mode: "no"
