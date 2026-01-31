@@ -33,7 +33,7 @@ The Redis service is deployed with "Protected Mode" disabled and is bound to `0.
 
 3.  **Run Deployment:**
     ```bash
-    ansible-playbook playbook.yml
+    ansible-playbook -i inventory.ini playbook.yml
     ```
 
 ## Documentation

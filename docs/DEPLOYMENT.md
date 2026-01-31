@@ -1,6 +1,6 @@
 The deployment is initiated using the standard ansible-playbook command.
 ```
-ansible-playbook playbook.yml
+ansible-playbook -i inventory.ini playbook.yml
 ```
 
 ### Verification Steps
