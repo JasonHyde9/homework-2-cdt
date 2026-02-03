@@ -1,30 +1,33 @@
 ---
 - name: Deploy Vulnerable Web & Redis Stack
   hosts: all
-  become: yes
+  become: true
   vars_files:
     - vars/main.yml
 
+  # Handlers are triggered only when tasks report a change
   handlers:
     - name: Restart Redis
-      service:
+      ansible.builtin.service:
         name: redis-server
         state: restarted
-        daemon_reload: yes
+        # daemon_reload is required because we are modifying systemd override files
+        daemon_reload: true
 
     - name: Restart Apache
-      service:
+      ansible.builtin.service:
         name: apache2
         state: restarted
 
   tasks:
+    # System Preparation
     - name: Update apt cache
-      apt:
-        update_cache: yes
-        cache_valid_time: 3600
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600  # Only update if cache is older than 1 hour
 
     - name: Install Apache, PHP, and Redis
-      apt:
+      ansible.builtin.apt:
         name:
           - apache2
           - php
@@ -33,30 +36,39 @@
           - php-redis
         state: present
 
+    # Vulnerability Configuration: Networking
+    # We bind Redis to 0.0.0.0 (all interfaces) to expose it to external attackers.
+    # Standard security practice would bind this to 127.0.0.1 (localhost).
     - name: Configure Redis Bind Address
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/redis/redis.conf
         regexp: '^bind '
         line: "bind {{ redis_bind_interface }}"
       notify: Restart Redis
 
+    # Vulnerability Configuration: Security Modes
+    # Disabling protected-mode allows unauthenticated external connections to run commands.
     - name: Disable Redis Protected Mode
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/redis/redis.conf
         regexp: '^protected-mode '
         line: "protected-mode no"
       notify: Restart Redis
 
+    # Redis 7+ blocks 'CONFIG SET' commands by default. We must explicitly enable them
+    # to allow the attacker to change the working directory and write files.
     - name: Enable Dangerous Config Changes (Vulnerability Requirement)
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/redis/redis.conf
         regexp: '^enable-protected-configs '
         line: "enable-protected-configs yes"
         insertafter: EOF
       notify: Restart Redis
 
+    # Web Server Setup
+    # Permissions are set to 0777 to ensure the Redis user has permission to write here.
     - name: Set Web Root Permissions
-      file:
+      ansible.builtin.file:
         path: "{{ web_root }}"
         state: directory
         mode: "0777"
@@ -64,37 +76,47 @@
         group: "www-data"
 
     - name: Create Dummy Index Page
-      copy:
+      ansible.builtin.copy:
         dest: "{{ web_root }}/index.php"
         content: |
           <?php
           echo "<h1>Vulnerable Service Deployed</h1>";
           echo "<p>Redis is running on port {{ redis_port }}</p>";
           ?>
+        mode: '0644'
+        owner: www-data
+        group: www-data
       notify: Restart Apache
 
-    # --- New Tasks for Systemd Override ---
+    # Systemd Security Override (Crucial for Exploit)
+    # Ubuntu 24.04 sandboxes Redis, preventing it from writing to /var/www.
+    # We must create a systemd override to explicitly allow write access to the web root.
     - name: Create systemd override directory for Redis
-      file:
+      ansible.builtin.file:
         path: /etc/systemd/system/redis-server.service.d
         state: directory
         mode: '0755'
 
+    # ReadWritePaths: Grants file system access to the web root.
+    # UMask=0022: Ensures files created by Redis are readable by the web server (Apache).
     - name: Allow Redis to write to web root (Systemd Override)
-      copy:
+      ansible.builtin.copy:
         dest: /etc/systemd/system/redis-server.service.d/override.conf
         content: |
           [Service]
           ReadWritePaths=/var/www/html
           UMask=0022
+        mode: '0644'
+        owner: root
+        group: root
       notify: Restart Redis
-    # --------------------------------------
 
+    # Finalize Services
     - name: Ensure Services are Running
-      service:
+      ansible.builtin.service:
         name: "{{ item }}"
         state: started
-        enabled: yes
+        enabled: true
       loop:
         - apache2
         - redis-server
