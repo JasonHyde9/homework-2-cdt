@@ -43,8 +43,8 @@ ansible-playbook -i inventory.ini playbook.yml
 ```
 
 ## Documentation
-* **[Deployment Guide](./deployment_guide.md):** Detailed instructions on environment setup, Jinja2 template usage, and service verification.
-* **[Exploitation Guide](./exploitation_guide.md):** Step-by-step walkthrough for identifying the vulnerability, weaponizing the file write, and upgrading to a Python3 Reverse Shell.
+* **[Deployment Guide](./docs/deployment_guide.md):** Detailed instructions on environment setup, Jinja2 template usage, and service verification.
+* **[Exploitation Guide](./docs/exploitation_guide.md):** Step-by-step walkthrough for identifying the vulnerability, weaponizing the file write, and upgrading to a Python3 Reverse Shell.
 
 ## Technical Details (Advanced Features)
 The Ansible playbook demonstrates proficiency in several advanced automation areas:
