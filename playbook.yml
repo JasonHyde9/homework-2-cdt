@@ -76,6 +76,14 @@
         owner: "www-data"
         group: "www-data"
 
+    - name: Deploy Vulnerable App PHP File
+      ansible.builtin.copy:
+        src: vulnerable_app.php
+        dest: "{{ web_root }}/vulnerable_app.php"
+        mode: '0644'
+        owner: www-data
+        group: www-data
+
     - name: Create Dummy Index Page
       ansible.builtin.template:
         src: templates/config.j2
