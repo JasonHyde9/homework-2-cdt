@@ -33,7 +33,7 @@ Follow these steps to deploy the vulnerable stack.
 Clone the project files to your Ansible control node:
 ```bash
 git clone https://github.com/JasonHyde9/homework-2-cdt
-cd ansible-vuln-deployment
+cd homework-2-cdt
 ```
 
 ### Step 2: Configure Inventory
